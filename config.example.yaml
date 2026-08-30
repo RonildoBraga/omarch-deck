@@ -1,28 +1,9 @@
 device:
-  path: auto
-  brightness: 0.7
+  path: auto        # serial path, or "auto" to find the first Loupedeck CT
+  brightness: 0.7   # screen backlight, 0-1
+
+project:
+  path: .           # project the Develop page builds/tests; relative to this file
 
 profile:
   name: default
-  buttons:
-    home:
-      label: Terminal
-      action: terminal
-    save:
-      label: Lock
-      action: lock-screen
-    undo:
-      label: Previous
-      action: previous-workspace
-    enter:
-      label: Next
-      action: next-workspace
-  dials:
-    knobTL:
-      counterClockwise: volume-down
-      clockwise: volume-up
-      press: volume-mute
-  touch:
-    "0":
-      label: Browser
-      action: browser

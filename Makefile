@@ -6,7 +6,7 @@ CONFIG := config.yaml
 UDEV_RULE := /etc/udev/rules.d/70-omarch-deck.rules
 
 .PHONY: help setup install config dev start build check test verify clean \
-	udev-install udev-check
+	diagnose-lights udev-install udev-check
 
 help: ## Show the available commands
 	@awk 'BEGIN {FS = ":.*## "; printf "omarch-deck commands:\n\n"} /^[a-zA-Z0-9_-]+:.*## / {printf "  %-14s %s\n", $$1, $$2}' $(MAKEFILE_LIST)
@@ -37,6 +37,9 @@ test: install ## Run the automated tests
 	npm test
 
 verify: check test build ## Run all validation required before a handoff
+
+diagnose-lights: build ## Cycle and chase all possible CT button LEDs
+	npm run diagnose:lights
 
 clean: ## Remove generated build and coverage output
 	rm -rf -- dist coverage

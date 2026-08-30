@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
+import { fileURLToPath } from "node:url";
 import { loadConfig } from "../src/config.js";
 
 test("the example configuration is valid", async () => {
@@ -8,7 +9,7 @@ test("the example configuration is valid", async () => {
   try {
     const { config } = await loadConfig();
     assert.equal(config.profile.name, "default");
-    assert.equal(config.profile.dials.knobTL?.clockwise, "volume-up");
+    assert.equal(config.project.path, fileURLToPath(new URL("..", import.meta.url)).replace(/\/$/, ""));
   } finally {
     if (previous === undefined) delete process.env.OMARCH_DECK_CONFIG;
     else process.env.OMARCH_DECK_CONFIG = previous;

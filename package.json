@@ -1,12 +1,13 @@
 {
   "name": "omarch-deck",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "private": true,
   "description": "An Omarchy-native controller for the Loupedeck CT",
   "type": "module",
   "scripts": {
     "build": "tsc -p tsconfig.json",
     "check": "tsc -p tsconfig.json --noEmit",
+    "diagnose:lights": "node dist/src/diagnose-lights.js",
     "dev": "tsx src/main.ts",
     "start": "node dist/src/main.js",
     "test": "node --import tsx --test test/**/*.test.ts"

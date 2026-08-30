@@ -1,32 +1,21 @@
 import { access, readFile } from "node:fs/promises";
 import { constants } from "node:fs";
 import { homedir } from "node:os";
-import { resolve } from "node:path";
+import { dirname, resolve } from "node:path";
 import YAML from "yaml";
 import { z } from "zod";
-
-const bindingSchema = z.object({
-  label: z.string().min(1),
-  action: z.string().min(1),
-});
-
-const dialSchema = z.object({
-  counterClockwise: z.string().optional(),
-  clockwise: z.string().optional(),
-  press: z.string().optional(),
-});
 
 const configSchema = z.object({
   device: z.object({
     path: z.string().default("auto"),
     brightness: z.number().min(0).max(1).default(0.7),
   }).default({ path: "auto", brightness: 0.7 }),
+  project: z.object({
+    path: z.string().min(1),
+  }).default({ path: process.cwd() }),
   profile: z.object({
     name: z.string().default("default"),
-    buttons: z.record(z.string(), bindingSchema).default({}),
-    dials: z.record(z.string(), dialSchema).default({}),
-    touch: z.record(z.string(), bindingSchema).default({}),
-  }),
+  }).default({ name: "default" }),
 });
 
 export type DeckConfig = z.infer<typeof configSchema>;
@@ -55,6 +44,9 @@ export async function loadConfig(): Promise<{ config: DeckConfig; path: string }
     throw new Error("No configuration found. Copy config.example.yaml to config.yaml.");
   }
 
-  const parsed = YAML.parse(await readFile(path, "utf8"));
-  return { config: configSchema.parse(parsed), path };
+  const config = configSchema.parse(YAML.parse(await readFile(path, "utf8")));
+  // A relative project path is taken from the config file's own directory so
+  // the example config works wherever the repository is checked out.
+  config.project.path = resolve(dirname(path), config.project.path);
+  return { config, path };
 }
