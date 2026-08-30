@@ -22,6 +22,18 @@ make udev-check  # confirm the serial device is readable; see below if not
 make start       # build and run
 ```
 
+To have it start with your desktop session:
+
+```sh
+make install-service   # user systemd unit, enabled and started now
+make service-logs      # follow its output
+make uninstall-service
+```
+
+Run `make build` again after pulling changes; the service runs the compiled
+`dist/` and restarts on failure. It stops with the graphical session and
+starts with the next login.
+
 Other commands:
 
 ```sh

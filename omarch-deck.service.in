@@ -1,0 +1,22 @@
+# Template for the omarch-deck user service. `make install-service` fills in
+# the absolute Node and project paths and installs it under
+# ~/.config/systemd/user/omarch-deck.service.
+[Unit]
+Description=omarch-deck Loupedeck CT controller
+# Needs the compositor's environment (WAYLAND_DISPLAY, HYPRLAND_INSTANCE_SIGNATURE,
+# Omarchy PATH), which the session exports to user services once it is up.
+After=graphical-session.target
+PartOf=graphical-session.target
+
+[Service]
+Type=simple
+WorkingDirectory=@PROJECT@
+ExecStart=@NODE@ @PROJECT@/dist/src/main.js
+Restart=on-failure
+RestartSec=5
+# Let the supervisor close the device cleanly; a hard kill wedges the CT.
+KillSignal=SIGTERM
+TimeoutStopSec=10
+
+[Install]
+WantedBy=graphical-session.target

@@ -4,9 +4,14 @@ SHELL := /usr/bin/env bash
 NODE_MODULES := node_modules/.package-lock.json
 CONFIG := config.yaml
 UDEV_RULE := /etc/udev/rules.d/70-omarch-deck.rules
+SERVICE := omarch-deck.service
+SERVICE_FILE := $(HOME)/.config/systemd/user/$(SERVICE)
+NODE := $(shell command -v node)
+PROJECT := $(CURDIR)
 
 .PHONY: help setup install config dev start build check test verify clean \
-	diagnose-lights udev-install udev-check
+	diagnose-lights udev-install udev-check \
+	install-service uninstall-service service-status service-logs
 
 help: ## Show the available commands
 	@awk 'BEGIN {FS = ":.*## "; printf "omarch-deck commands:\n\n"} /^[a-zA-Z0-9_-]+:.*## / {printf "  %-14s %s\n", $$1, $$2}' $(MAKEFILE_LIST)
@@ -43,6 +48,25 @@ diagnose-lights: build ## Cycle and chase all possible CT button LEDs
 
 clean: ## Remove generated build and coverage output
 	rm -rf -- dist coverage
+
+install-service: build config ## Install and start the user service so the deck runs at login
+	@test -n "$(NODE)" || { printf 'node not found in PATH\n'; exit 1; }
+	mkdir -p "$(dir $(SERVICE_FILE))"
+	sed -e 's|@NODE@|$(NODE)|g' -e 's|@PROJECT@|$(PROJECT)|g' $(SERVICE).in > "$(SERVICE_FILE)"
+	systemctl --user daemon-reload
+	systemctl --user enable --now $(SERVICE)
+	@printf 'Installed %s\nRun `make service-logs` to follow it.\n' "$(SERVICE_FILE)"
+
+uninstall-service: ## Stop, disable, and remove the user service
+	-systemctl --user disable --now $(SERVICE)
+	rm -f "$(SERVICE_FILE)"
+	systemctl --user daemon-reload
+
+service-status: ## Show whether the user service is running
+	systemctl --user --no-pager status $(SERVICE)
+
+service-logs: ## Follow the user service log
+	journalctl --user -u $(SERVICE) -f
 
 udev-install: ## Install the Loupedeck permission rule (graphical admin prompt)
 	pkexec install -m 0644 70-omarch-deck.rules $(UDEV_RULE)
