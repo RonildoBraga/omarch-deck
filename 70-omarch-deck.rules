@@ -1,0 +1,2 @@
+# Allow local input-group users to control Loupedeck serial devices.
+SUBSYSTEM=="tty", ATTRS{idVendor}=="2ec2", MODE="0660", GROUP="input", TAG+="uaccess"

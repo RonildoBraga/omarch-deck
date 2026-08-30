@@ -1,0 +1,28 @@
+device:
+  path: auto
+  brightness: 0.7
+
+profile:
+  name: default
+  buttons:
+    home:
+      label: Terminal
+      action: terminal
+    save:
+      label: Lock
+      action: lock-screen
+    undo:
+      label: Previous
+      action: previous-workspace
+    enter:
+      label: Next
+      action: next-workspace
+  dials:
+    knobTL:
+      counterClockwise: volume-down
+      clockwise: volume-up
+      press: volume-mute
+  touch:
+    "0":
+      label: Browser
+      action: browser
