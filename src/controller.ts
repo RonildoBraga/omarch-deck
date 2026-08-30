@@ -26,6 +26,9 @@ export class DeckController {
   private page: PageName = "main";
   private readonly touchStarts = new Map<number, TouchStart>();
   private readonly held = new Set<string>();
+  // Per-dial rotation queue: one command in flight, later notches are summed
+  // into a pending delta and replayed as a single net step when it finishes.
+  private readonly rotations = new Map<string, { running: boolean; pending: number }>();
   private workspaceColors = new Map<number, string>();
   private lastWheelState = "";
   private stopped = false;
@@ -75,7 +78,7 @@ export class DeckController {
     });
     this.deck.on("rotate", ({ id, delta }) => {
       console.log(`[input] rotate ${id} delta=${delta}`);
-      void this.onRotate(id, delta);
+      this.queueRotate(id, delta);
     });
     this.deck.on("touchstart", ({ changedTouches }) => {
       for (const touch of changedTouches) this.onTouchStart(touch);
@@ -110,6 +113,24 @@ export class DeckController {
       case "knobBR": await this.runAction("zoom-reset", "Zoom reset"); break;
       case "knobCT": await this.showStatus("Workspace", "Use wheel to navigate"); break;
     }
+  }
+
+  private queueRotate(id: string, delta: number): void {
+    const entry = this.rotations.get(id) ?? { running: false, pending: 0 };
+    this.rotations.set(id, entry);
+    // Cap the backlog so a fast spin on a slow command (DDC brightness takes
+    // ~0.7s per step) doesn't keep stepping for seconds after the dial stops.
+    entry.pending = Math.max(-3, Math.min(3, entry.pending + delta));
+    if (entry.running) return;
+    entry.running = true;
+    void (async () => {
+      while (entry.pending !== 0) {
+        const step = Math.sign(entry.pending);
+        entry.pending -= step;
+        await this.onRotate(id, step);
+      }
+      entry.running = false;
+    })();
   }
 
   private async onRotate(id: string, delta: number): Promise<void> {

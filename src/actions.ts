@@ -1,7 +1,15 @@
-import { execFile } from "node:child_process";
+import { execFile, spawn } from "node:child_process";
 import { promisify } from "node:util";
 
 const runFile = promisify(execFile);
+
+// Actions that open or focus a GUI/TUI app. They are started detached with no
+// stdio: awaiting them would block until the app closes, and inheriting pipes
+// makes terminals such as foot exit non-zero even though they launched.
+const LAUNCHERS = new Set([
+  "terminal", "editor", "browser", "files", "lazygit", "docker", "processes",
+  "clipboard", "screenshot", "passwords", "lock-screen", "nightlight",
+]);
 
 export const ACTIONS = {
   terminal: ["omarchy", "launch", "terminal"],
@@ -18,8 +26,8 @@ export const ACTIONS = {
   "volume-down": ["wpctl", "set-volume", "@DEFAULT_AUDIO_SINK@", "5%-"],
   "volume-up": ["wpctl", "set-volume", "@DEFAULT_AUDIO_SINK@", "5%+"],
   "volume-mute": ["wpctl", "set-mute", "@DEFAULT_AUDIO_SINK@", "toggle"],
-  "brightness-down": ["ddcutil", "setvcp", "10", "-", "5", "--noverify"],
-  "brightness-up": ["ddcutil", "setvcp", "10", "+", "5", "--noverify"],
+  "brightness-down": ["omarchy", "brightness", "display", "5%-"],
+  "brightness-up": ["omarchy", "brightness", "display", "+5%"],
   nightlight: ["omarchy", "toggle", "nightlight"],
   save: ["wtype", "-M", "ctrl", "-P", "s", "-p", "s", "-m", "ctrl"],
   undo: ["wtype", "-M", "ctrl", "-P", "z", "-p", "z", "-m", "ctrl"],
@@ -46,23 +54,37 @@ export function isActionName(value: string): value is ActionName {
 }
 
 export async function executeCommand(command: string, args: readonly string[], cwd?: string): Promise<ActionResult> {
-  const { stdout, stderr } = await runFile(command, [...args], { cwd, timeout: 120_000 });
-  const output = `${stdout}${stderr}`.trim();
-  return { message: output.split("\n").at(-1) || "Done", ...(output ? { output } : {}) };
+  try {
+    const { stdout, stderr } = await runFile(command, [...args], { cwd, timeout: 120_000 });
+    const output = `${stdout}${stderr}`.trim();
+    return { message: stdout.trim().split("\n").at(-1) || "Done", ...(output ? { output } : {}) };
+  } catch (error) {
+    const stderr = (error as { stderr?: string }).stderr?.trim().split("\n").at(-1);
+    throw new Error(stderr || (error instanceof Error ? error.message : String(error)));
+  }
+}
+
+export function launchCommand(command: string, args: readonly string[]): Promise<ActionResult> {
+  return new Promise((resolve, reject) => {
+    const child = spawn(command, [...args], { detached: true, stdio: "ignore" });
+    child.once("error", reject);
+    child.once("spawn", () => { child.unref(); resolve({ message: "Launched" }); });
+  });
 }
 
 export async function executeAction(name: string, projectPath?: string): Promise<ActionResult> {
   if (name.startsWith("project:")) {
     const target = name.slice("project:".length);
     if (!["build", "test", "check", "verify"].includes(target)) throw new Error(`Unknown project task '${target}'`);
-    return executeCommand("make", [target], projectPath);
+    const result = await executeCommand("make", [target], projectPath);
+    return { ...result, message: "Passed" };
   }
   if (name === "git-status") return executeCommand("git", ["status", "--short", "--branch"], projectPath);
   if (!isActionName(name)) throw new Error(`Unknown action '${name}'. Allowed actions: ${Object.keys(ACTIONS).join(", ")}`);
 
   const [command, ...args] = ACTIONS[name];
   const withProject = name === "editor" && projectPath ? [...args, projectPath] : args;
-  return executeCommand(command, withProject);
+  return LAUNCHERS.has(name) ? launchCommand(command, withProject) : executeCommand(command, withProject);
 }
 
 export function workspaceFocus(workspace: string | number): Promise<ActionResult> {
