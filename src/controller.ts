@@ -1,5 +1,5 @@
 import type { DrawContext, LoupedeckCT, Touch } from "loupedeck";
-import { cycleWindow, executeAction, workspaceFocus, workspaceMove } from "./actions.js";
+import { cycleWindow, executeAction, fullscreen, workspaceFocus, workspaceMove } from "./actions.js";
 import type { DeckConfig } from "./config.js";
 import { drawIcon } from "./icons.js";
 import { PAGES, THEME, type DeckKey, type PageName } from "./pages.js";
@@ -105,6 +105,11 @@ export class DeckController {
       case "undo": await this.runAction(this.held.has("fnL") || this.held.has("fnR") ? "redo" : "undo", "Undo / Redo"); break;
       case "keyboard": await this.runAction("clipboard", "Clipboard"); break;
       case "enter": await this.runAction("enter", "Enter"); break;
+      case "a": await this.runAction("tmux", "tmux session"); break;
+      case "b": await this.run("Fullscreen", fullscreen); break;
+      case "c": await this.runAction("screenrecord", "Screen record"); break;
+      case "d": await this.runAction("dnd", "Do not disturb"); break;
+      case "e": await this.runAction("stay-awake", "Stay awake"); break;
       case "knobTL": await this.runAction("volume-mute", "Volume mute"); break;
       case "knobTR": await this.runAction("nightlight", "Night light"); break;
       case "knobCL": await this.run("Next window", () => cycleWindow(true)); break;

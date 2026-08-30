@@ -9,6 +9,7 @@ const runFile = promisify(execFile);
 const LAUNCHERS = new Set([
   "terminal", "editor", "browser", "files", "lazygit", "docker", "processes",
   "clipboard", "screenshot", "passwords", "lock-screen", "nightlight",
+  "tmux", "screenrecord", "dnd", "stay-awake",
 ]);
 
 export const ACTIONS = {
@@ -29,6 +30,10 @@ export const ACTIONS = {
   "brightness-down": ["omarchy", "brightness", "display", "5%-"],
   "brightness-up": ["omarchy", "brightness", "display", "+5%"],
   nightlight: ["omarchy", "toggle", "nightlight"],
+  tmux: ["omarchy", "launch", "terminal", "tmux"],
+  screenrecord: ["omarchy", "capture", "screenrecording"],
+  dnd: ["omarchy", "toggle", "notification", "silencing"],
+  "stay-awake": ["omarchy", "toggle", "idle"],
   save: ["wtype", "-M", "ctrl", "-P", "s", "-p", "s", "-m", "ctrl"],
   undo: ["wtype", "-M", "ctrl", "-P", "z", "-p", "z", "-m", "ctrl"],
   redo: ["wtype", "-M", "ctrl", "-M", "shift", "-P", "z", "-p", "z", "-m", "shift", "-m", "ctrl"],
@@ -93,6 +98,10 @@ export function workspaceFocus(workspace: string | number): Promise<ActionResult
 
 export function workspaceMove(workspace: number): Promise<ActionResult> {
   return executeCommand("hyprctl", ["dispatch", `hl.dsp.window.move({ workspace = "${workspace}" })`]);
+}
+
+export function fullscreen(): Promise<ActionResult> {
+  return executeCommand("hyprctl", ["dispatch", 'hl.dsp.window.fullscreen({ mode = "fullscreen" })']);
 }
 
 export function cycleWindow(next: boolean): Promise<ActionResult> {

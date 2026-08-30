@@ -78,8 +78,15 @@ active workspace, focused app, and the project's git branch.
 | Bottom-right | Zoom in/out | Zoom reset |
 
 **Square buttons**: Home returns to the Main page; Save, Undo, and Enter send
-those keystrokes; Fn+Undo is Redo; Keyboard opens the clipboard menu. A–E are
-lit but unassigned.
+those keystrokes; Fn+Undo is Redo; Keyboard opens the clipboard menu.
+
+| Key | Action |
+|---|---|
+| A | Open or attach the Work tmux session in a terminal |
+| B | Toggle fullscreen on the focused window |
+| C | Start / stop screen recording |
+| D | Toggle do-not-disturb (notification silencing) |
+| E | Toggle stay-awake (idle inhibit) |
 
 Layouts live in `src/pages.ts`, dials and buttons in `src/controller.ts`, and
 the command allow-list in `src/actions.ts`. Arbitrary shell commands are never
@@ -103,8 +110,14 @@ useful for checking a second-hand unit.
 ## Troubleshooting
 
 **Connection timed out / Invalid handshake response** on every attempt: the
-device is wedged from an earlier unclean disconnect. Unplug the CT's USB cable
-and plug it back in, then start again. Nothing else recovers it.
+device is wedged from an earlier unclean disconnect. After five failures the
+controller says so and slows to one retry every 30 s. Unplug the CT's USB
+cable and plug it back in; it reconnects on the next retry. Nothing else
+recovers it.
+
+`fonts.conf` is a minimal fontconfig passed to the worker; the fontconfig
+bundled with `canvas` cannot parse parts of the system configuration and would
+otherwise print warnings at every start.
 
 **Permission denied** on `/dev/ttyACM*`: run `make udev-install`. It installs
 `70-omarch-deck.rules`, which grants the `input` group access to serial devices
