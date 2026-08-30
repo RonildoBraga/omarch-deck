@@ -11,7 +11,7 @@ PROJECT := $(CURDIR)
 
 .PHONY: help setup install config dev start build check test verify clean \
 	diagnose-lights udev-install udev-check \
-	install-service uninstall-service service-status service-logs
+	install-service uninstall-service service-status service-logs docs
 
 help: ## Show the available commands
 	@awk 'BEGIN {FS = ":.*## "; printf "omarch-deck commands:\n\n"} /^[a-zA-Z0-9_-]+:.*## / {printf "  %-14s %s\n", $$1, $$2}' $(MAKEFILE_LIST)
@@ -42,6 +42,9 @@ test: install ## Run the automated tests
 	npm test
 
 verify: check test build ## Run all validation required before a handoff
+
+docs: install ## Regenerate docs/index.html from the control tables
+	npx tsx scripts/build-docs.ts
 
 diagnose-lights: build ## Cycle and chase all possible CT button LEDs
 	npm run diagnose:lights

@@ -1,11 +1,11 @@
 import type { DrawContext, LoupedeckCT, Touch } from "loupedeck";
-import { cycleWindow, executeAction, fullscreen, workspaceFocus, workspaceMove } from "./actions.js";
+import { executeAction, workspaceFocus, workspaceMove } from "./actions.js";
 import type { DeckConfig } from "./config.js";
 import { drawIcon } from "./icons.js";
+import { BUTTONS, DIALS, WORKSPACE_BUTTONS, type Step } from "./layout.js";
 import { PAGES, THEME, type DeckKey, type PageName } from "./pages.js";
 import { readDesktopState, type DesktopState } from "./state.js";
 
-const WORKSPACE_BUTTONS = [0, 1, 2, 3, 4, 5, 6, 7] as const;
 const PHYSICAL_COLORS: Record<string, string> = {
   home: "#7a0a0a", undo: "#7a0a0a", keyboard: "#7a0a0a", enter: "#7a0a0a",
   save: "#7a0a0a", fnL: "#7a0a0a", fnR: "#7a0a0a",
@@ -99,25 +99,19 @@ export class DeckController {
       return;
     }
 
-    switch (id) {
-      case "home": await this.renderPage("main"); break;
-      case "save": await this.runAction("save", "Save"); break;
-      case "undo": await this.runAction(this.held.has("fnL") || this.held.has("fnR") ? "redo" : "undo", "Undo / Redo"); break;
-      case "keyboard": await this.runAction("clipboard", "Clipboard"); break;
-      case "enter": await this.runAction("enter", "Enter"); break;
-      case "a": await this.runAction("tmux", "tmux session"); break;
-      case "b": await this.run("Fullscreen", fullscreen); break;
-      case "c": await this.runAction("screenrecord", "Screen record"); break;
-      case "d": await this.runAction("dnd", "Do not disturb"); break;
-      case "e": await this.runAction("stay-awake", "Stay awake"); break;
-      case "knobTL": await this.runAction("volume-mute", "Volume mute"); break;
-      case "knobTR": await this.runAction("nightlight", "Night light"); break;
-      case "knobCL": await this.run("Next window", () => cycleWindow(true)); break;
-      case "knobCR": await this.runAction("tab-next", "Next tab"); break;
-      case "knobBL": await this.runAction("scroll-down", "Page down"); break;
-      case "knobBR": await this.runAction("zoom-reset", "Zoom reset"); break;
-      case "knobCT": await this.showStatus("Workspace", "Use wheel to navigate"); break;
-    }
+    const fnHeld = this.held.has("fnL") || this.held.has("fnR");
+    const button = BUTTONS.find(candidate => candidate.id === id);
+    if (button) { await this.perform(fnHeld && button.fn ? button.fn : button.tap); return; }
+    const dial = DIALS.find(candidate => candidate.id === id);
+    if (dial) await this.perform(dial.press);
+  }
+
+  private async perform(step: Step): Promise<void> {
+    const { invoke } = step;
+    if (typeof invoke === "string") await this.runAction(invoke, step.label);
+    else if ("run" in invoke) await this.run(step.label, invoke.run);
+    else if ("page" in invoke) await this.renderPage(invoke.page);
+    else await this.showStatus(step.label, invoke.note);
   }
 
   private queueRotate(id: string, delta: number): void {
@@ -139,16 +133,8 @@ export class DeckController {
   }
 
   private async onRotate(id: string, delta: number): Promise<void> {
-    const negative = delta < 0;
-    switch (id) {
-      case "knobCT": await this.run(`Workspace ${negative ? "previous" : "next"}`, () => workspaceFocus(negative ? "e-1" : "e+1")); break;
-      case "knobTL": await this.runAction(negative ? "volume-down" : "volume-up", `Volume ${negative ? "−" : "+"}`); break;
-      case "knobTR": await this.runAction(negative ? "brightness-down" : "brightness-up", `Brightness ${negative ? "−" : "+"}`); break;
-      case "knobCL": await this.run(`Window ${negative ? "previous" : "next"}`, () => cycleWindow(!negative)); break;
-      case "knobCR": await this.runAction(negative ? "tab-previous" : "tab-next", `Tab ${negative ? "previous" : "next"}`); break;
-      case "knobBL": await this.runAction(negative ? "scroll-up" : "scroll-down", `Page ${negative ? "up" : "down"}`); break;
-      case "knobBR": await this.runAction(negative ? "zoom-out" : "zoom-in", `Zoom ${negative ? "−" : "+"}`); break;
-    }
+    const dial = DIALS.find(candidate => candidate.id === id);
+    if (dial) await this.perform(delta < 0 ? dial.counterClockwise : dial.clockwise);
   }
 
   private onTouchStart(touch: Touch): void {

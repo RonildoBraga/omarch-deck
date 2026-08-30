@@ -9,6 +9,7 @@
     "check": "tsc -p tsconfig.json --noEmit",
     "diagnose:lights": "node dist/src/diagnose-lights.js",
     "dev": "tsx src/main.ts",
+    "docs": "tsx scripts/build-docs.ts",
     "start": "node dist/src/main.js",
     "test": "node --import tsx --test test/**/*.test.ts"
   },

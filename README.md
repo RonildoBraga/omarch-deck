@@ -51,6 +51,10 @@ value is resolved against the config file's directory.
 
 ## Controls
 
+The full binding map with an annotated diagram is at
+<https://ronildobraga.github.io/omarch-deck/>; it is generated from the
+control tables by `make docs`, and a test fails if `docs/` is stale.
+
 Everything is red on black: dark red LEDs on the physical buttons, black touch
 tiles with red outline icons.
 
@@ -100,8 +104,8 @@ those keystrokes; Fn+Undo is Redo; Keyboard opens the clipboard menu.
 | D | Toggle do-not-disturb (notification silencing) |
 | E | Toggle stay-awake (idle inhibit) |
 
-Layouts live in `src/pages.ts`, dials and buttons in `src/controller.ts`, and
-the command allow-list in `src/actions.ts`. Arbitrary shell commands are never
+Touch layouts live in `src/pages.ts`, dials and buttons in `src/layout.ts`,
+and the command allow-list in `src/actions.ts`. Arbitrary shell commands are never
 run from configuration.
 
 ## Hardware notes
