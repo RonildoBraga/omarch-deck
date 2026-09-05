@@ -14,7 +14,7 @@ software.
 
 ## Run it
 
-Requirements are Node.js 20 or newer and access to the CT serial device.
+Requirements are Node.js 22 or newer and access to the CT serial device.
 
 ```sh
 make setup       # npm ci + create config.yaml from the example

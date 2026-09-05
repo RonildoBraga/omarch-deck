@@ -30,8 +30,15 @@ async function exists(path: string): Promise<boolean> {
 }
 
 export async function loadConfig(): Promise<{ config: DeckConfig; path: string }> {
+  const override = process.env.OMARCH_DECK_CONFIG;
+  // An explicit override is the one input where intent is unambiguous. Falling
+  // through to a different file leaves the user editing something never read.
+  if (override && !await exists(override)) {
+    throw new Error(`OMARCH_DECK_CONFIG=${override} is not readable`);
+  }
+
   const candidates = [
-    process.env.OMARCH_DECK_CONFIG,
+    override,
     resolve(process.cwd(), "config.yaml"),
     resolve(homedir(), ".config/omarch-deck/config.yaml"),
     resolve(process.cwd(), "config.example.yaml"),
@@ -44,7 +51,25 @@ export async function loadConfig(): Promise<{ config: DeckConfig; path: string }
     throw new Error("No configuration found. Copy config.example.yaml to config.yaml.");
   }
 
-  const config = configSchema.parse(YAML.parse(await readFile(path, "utf8")));
+  // Both steps below fail with messages that name no file: a YAML error from
+  // the parser, and a raw JSON issue array from zod. The service reprints
+  // whatever comes out every RestartSec seconds, so it has to be readable.
+  let raw: unknown;
+  try {
+    // An empty or comment-only file parses to null; treat it as "all defaults".
+    raw = YAML.parse(await readFile(path, "utf8")) ?? {};
+  } catch (error) {
+    throw new Error(`${path}: ${error instanceof Error ? error.message : String(error)}`);
+  }
+
+  const parsed = configSchema.safeParse(raw);
+  if (!parsed.success) {
+    const issues = parsed.error.issues
+      .map(issue => `${issue.path.join(".") || "(root)"}: ${issue.message}`)
+      .join("; ");
+    throw new Error(`${path}: ${issues}`);
+  }
+  const config = parsed.data;
   // A relative project path is taken from the config file's own directory so
   // the example config works wherever the repository is checked out.
   config.project.path = resolve(dirname(path), config.project.path);

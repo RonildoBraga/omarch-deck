@@ -42,11 +42,15 @@ declare module "loupedeck" {
     connect(): Promise<void>;
     close(): Promise<void> | undefined;
     getInfo(): Promise<{ serial: string; version: string }>;
-    setBrightness(value: number): Promise<void>;
-    setButtonColor(options: { id: string | number; color: string }): Promise<void>;
-    vibrate(pattern?: number): Promise<void>;
-    drawKey(index: number, callback: DrawCallback): Promise<void>;
-    drawScreen(id: "left" | "center" | "right" | "knob", callback: DrawCallback): Promise<void>;
+    // Every command bottoms out in send(), which returns undefined instead of a
+    // promise when the port is not ready, and otherwise a promise that only
+    // ever resolves — on the device's acknowledgement. It is never rejected and
+    // never times out, so callers must impose their own deadline.
+    setBrightness(value: number): Promise<void> | undefined;
+    setButtonColor(options: { id: string | number; color: string }): Promise<void> | undefined;
+    vibrate(pattern?: number): Promise<void> | undefined;
+    drawKey(index: number, callback: DrawCallback): Promise<void> | undefined;
+    drawScreen(id: "left" | "center" | "right" | "knob", callback: DrawCallback): Promise<void> | undefined;
     on(event: "connect", listener: (info: { address: string }) => void): this;
     on(event: "disconnect", listener: (error?: Error) => void): this;
     on(event: "down" | "up", listener: (event: { id: string | number }) => void): this;
