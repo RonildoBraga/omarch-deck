@@ -80,9 +80,15 @@ export class DeckController {
   private readonly wheel = new WheelOwnership();
   private stopped = false;
   private disconnected = false;
+  private loopExited = false;
   private rendering: Promise<void> = Promise.resolve();
 
-  constructor(private readonly deck: LoupedeckCT, private readonly config: DeckConfig) {}
+  constructor(
+    private readonly deck: LoupedeckCT,
+    private readonly config: DeckConfig,
+    // Overridable so the escalation can be tested without a five second wait.
+    private readonly disconnectGraceMs: number = POST_DISCONNECT_GRACE_MS,
+  ) {}
 
   async start(): Promise<void> {
     this.bindEvents();
@@ -92,9 +98,13 @@ export class DeckController {
     this.initializePhysicalLights();
     console.log("[device] dashboard active: main page, workspace LEDs, and global dials ready");
 
-    while (!this.stopped && !this.disconnected) {
-      await this.updateDesktopState();
-      await delay(750);
+    try {
+      while (!this.stopped && !this.disconnected) {
+        await this.updateDesktopState();
+        await delay(750);
+      }
+    } finally {
+      this.loopExited = true;
     }
   }
 
@@ -115,13 +125,14 @@ export class DeckController {
       this.disconnected = true;
       console.error(`[device] disconnected${error ? `: ${error.message}` : ""}`);
       // start() may be parked on a transfer the CT will now never acknowledge.
-      // Only reachable after a real disconnect, so it cannot fire on a healthy
-      // but slow device.
+      // Normally the loop notices `disconnected` and unwinds within a tick, and
+      // the worker reconnects in-process — so only escalate if it is genuinely
+      // still stuck, never merely because a disconnect happened.
       setTimeout(() => {
-        if (this.stopped) return;
+        if (this.stopped || this.loopExited) return;
         console.error("[device] still blocked on the device after disconnect; restarting");
         process.exit(RESTART_EXIT_CODE);
-      }, POST_DISCONNECT_GRACE_MS).unref();
+      }, this.disconnectGraceMs).unref();
     });
     this.deck.on("down", ({ id }) => {
       const name = String(id);

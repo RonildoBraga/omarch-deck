@@ -21,13 +21,15 @@ type Draw = (context: never, width: number, height: number) => void;
 
 class FakeDeck {
   readonly drawn: string[] = [];
+  readonly handlers = new Map<string, (arg: never) => void>();
   /** Mimic a port that is not ready: the library returns undefined, not a promise. */
   notReady = false;
   /** Mimic an unplug mid-transfer: the library's promise is never settled. */
   stall = false;
 
-  on(): this { return this; }
-  once(): this { return this; }
+  on(event: string, handler: (arg: never) => void): this { this.handlers.set(event, handler); return this; }
+  once(event: string, handler: (arg: never) => void): this { return this.on(event, handler); }
+  emit(event: string, arg?: unknown): void { this.handlers.get(event)?.(arg as never); }
   close(): Promise<void> { return Promise.resolve(); }
   setBrightness(): Promise<void> | undefined { return this.record("brightness"); }
   setButtonColor(): Promise<void> | undefined { return this.record("color"); }
@@ -49,8 +51,8 @@ class FakeDeck {
   }
 }
 
-function controllerFor(deck: FakeDeck): DeckController {
-  return new DeckController(deck as unknown as LoupedeckCT, CONFIG);
+function controllerFor(deck: FakeDeck, disconnectGraceMs = 5_000): DeckController {
+  return new DeckController(deck as unknown as LoupedeckCT, CONFIG, disconnectGraceMs);
 }
 
 test("start paints every touch key and both side strips", async () => {
@@ -110,4 +112,24 @@ test("a dashboard frame is only remembered once it reached the device", () => {
   assert.equal(wheel.wantsDashboard(now, "1|foot|main"), true);
   wheel.recordDashboard("1|foot|main");
   assert.equal(wheel.wantsDashboard(now, "1|foot|main"), false);
+});
+
+// The loop normally notices the disconnect and unwinds within a tick, and the
+// worker reconnects in-process. Escalating on every disconnect instead turned
+// a routine reconnect into a full process restart.
+test("a disconnect the run loop recovers from does not escalate", async () => {
+  const deck = new FakeDeck();
+  const controller = controllerFor(deck, 30);
+  const exits: number[] = [];
+  const realExit = process.exit;
+  (process as { exit: unknown }).exit = ((code?: number) => { exits.push(code ?? 0); }) as typeof process.exit;
+  try {
+    const running = controller.start();
+    deck.emit("disconnect", undefined);        // run loop sees `disconnected` and returns
+    await running;
+    await new Promise(resolve => setTimeout(resolve, 120));   // well past the 30ms grace
+    assert.deepEqual(exits, [], "the loop unwound, so nothing should escalate");
+  } finally {
+    (process as { exit: unknown }).exit = realExit;
+  }
 });
