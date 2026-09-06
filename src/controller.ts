@@ -52,7 +52,9 @@ export class WheelOwnership {
   }
 }
 
-export const STRIP_FONT = "bold 14px sans-serif";
+// Larger than the 37.8px key-tile icons: a strip glyph sits alone in a 60x90
+// band, so it can afford the width.
+export const STRIP_ICON_SIZE = 40;
 
 // Exported so the rendering can be inspected off-device: this paints onto a
 // 60x270 surface no test rig can see, and eyeballing a PNG beats guessing.
@@ -60,16 +62,14 @@ export function stripPainter(side: "left" | "right") {
   return (context: DrawContext, width: number, height: number): void => {
     context.fillStyle = THEME.strip;
     context.fillRect(0, 0, width, height);
-    context.fillStyle = THEME.text;
-    context.font = STRIP_FONT;
-    context.textAlign = "center";
-    context.textBaseline = "middle";
+    context.strokeStyle = THEME.icon;
+    context.fillStyle = THEME.icon;
     const ids = STRIP_DIALS[side];
     const band = height / ids.length;
     for (const [index, id] of ids.entries()) {
-      const legend = DIALS.find(candidate => candidate.id === id)?.strip;
-      if (!legend) continue;
-      context.fillText(legend, width / 2, band * (index + 0.5), width - 6);
+      const glyph = DIALS.find(candidate => candidate.id === id)?.strip;
+      if (!glyph) continue;
+      drawIcon(context, glyph, width / 2, band * (index + 0.5), STRIP_ICON_SIZE);
     }
   };
 }

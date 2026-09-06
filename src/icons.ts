@@ -4,7 +4,10 @@
 export type IconName =
   | "terminal" | "code" | "browser" | "files" | "git" | "docker" | "processes"
   | "clipboard" | "camera" | "key" | "lock" | "wrench" | "hammer" | "check"
-  | "search" | "home" | "back";
+  | "search" | "home" | "back"
+  // Dial legends for the 60px side strips, drawn larger (s=40) than the tile
+  // icons and alone in their band.
+  | "volume" | "window" | "scroll" | "screen" | "tab" | "zoom";
 
 import type { DrawContext } from "loupedeck";
 
@@ -153,7 +156,62 @@ const ICONS: Record<IconName, Drawer> = {
     line(ctx, cx - s * 0.4, cy, cx - s * 0.1, cy + s * 0.3);
     ctx.lineWidth /= 1.4;
   },
+  volume(ctx, cx, cy, s) {
+    ctx.beginPath();
+    ctx.moveTo(cx - s * 0.42, cy - s * 0.13);
+    ctx.lineTo(cx - s * 0.22, cy - s * 0.13);
+    ctx.lineTo(cx - s * 0.02, cy - s * 0.36);
+    ctx.lineTo(cx - s * 0.02, cy + s * 0.36);
+    ctx.lineTo(cx - s * 0.22, cy + s * 0.13);
+    ctx.lineTo(cx - s * 0.42, cy + s * 0.13);
+    ctx.closePath(); ctx.fill();
+    ctx.beginPath(); ctx.arc(cx - s * 0.02, cy, s * 0.22, -Math.PI / 3, Math.PI / 3); ctx.stroke();
+    ctx.beginPath(); ctx.arc(cx - s * 0.02, cy, s * 0.42, -Math.PI / 3, Math.PI / 3); ctx.stroke();
+  },
+  window(ctx, cx, cy, s) {
+    ctx.beginPath();
+    ctx.moveTo(cx - s * 0.18, cy - s * 0.08);
+    ctx.lineTo(cx - s * 0.18, cy - s * 0.44);
+    ctx.lineTo(cx + s * 0.46, cy - s * 0.44);
+    ctx.lineTo(cx + s * 0.46, cy + s * 0.16);
+    ctx.lineTo(cx + s * 0.26, cy + s * 0.16);
+    ctx.stroke();
+    rect(ctx, cx - s * 0.46, cy - s * 0.08, s * 0.72, s * 0.52, 3);
+    line(ctx, cx - s * 0.46, cy + s * 0.08, cx + s * 0.26, cy + s * 0.08);
+  },
+  scroll(ctx, cx, cy, s) {
+    rect(ctx, cx - s * 0.36, cy - s * 0.42, s * 0.44, s * 0.84, s * 0.22);
+    line(ctx, cx - s * 0.36, cy + s * 0.02, cx + s * 0.08, cy + s * 0.02);
+    ctx.beginPath(); ctx.roundRect(cx - s * 0.19, cy - s * 0.30, s * 0.10, s * 0.20, s * 0.05); ctx.fill();
+    line(ctx, cx + s * 0.36, cy - s * 0.36, cx + s * 0.36, cy + s * 0.36);
+    line(ctx, cx + s * 0.36, cy - s * 0.36, cx + s * 0.24, cy - s * 0.20);
+    line(ctx, cx + s * 0.36, cy - s * 0.36, cx + s * 0.48, cy - s * 0.20);
+    line(ctx, cx + s * 0.36, cy + s * 0.36, cx + s * 0.24, cy + s * 0.20);
+    line(ctx, cx + s * 0.36, cy + s * 0.36, cx + s * 0.48, cy + s * 0.20);
+  },
+  screen(ctx, cx, cy, s) {
+    dot(ctx, cx, cy, s * 0.17);
+    for (let i = 0; i < 8; i++) {
+      const a = (i * Math.PI) / 4;
+      line(ctx, cx + Math.cos(a) * s * 0.28, cy + Math.sin(a) * s * 0.28,
+        cx + Math.cos(a) * s * 0.46, cy + Math.sin(a) * s * 0.46);
+    }
+  },
+  tab(ctx, cx, cy, s) {
+    ctx.fillRect(cx - s * 0.46, cy - s * 0.40, s * 0.42, s * 0.24);
+    rect(ctx, cx + s * 0.04, cy - s * 0.40, s * 0.42, s * 0.24, 2);
+    rect(ctx, cx - s * 0.48, cy - s * 0.02, s * 0.96, s * 0.44, 3);
+  },
+  zoom(ctx, cx, cy, s) {
+    ctx.beginPath(); ctx.arc(cx - s * 0.06, cy - s * 0.08, s * 0.32, 0, Math.PI * 2); ctx.stroke();
+    line(ctx, cx - s * 0.20, cy - s * 0.08, cx + s * 0.08, cy - s * 0.08);
+    line(ctx, cx - s * 0.06, cy - s * 0.22, cx - s * 0.06, cy + s * 0.06);
+    line(ctx, cx + s * 0.16, cy + s * 0.14, cx + s * 0.42, cy + s * 0.40);
+  },
 };
+
+// Runtime view of IconName, so tables that store an icon name can be checked.
+export const ICON_NAMES = Object.keys(ICONS) as IconName[];
 
 export function drawIcon(ctx: Ctx, name: IconName, cx: number, cy: number, size: number): void {
   ctx.save();

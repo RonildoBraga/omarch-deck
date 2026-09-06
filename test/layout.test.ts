@@ -1,27 +1,28 @@
 import assert from "node:assert/strict";
 import test from "node:test";
+import { ICON_NAMES } from "../src/icons.js";
 import { DIALS, STRIP_DIALS } from "../src/layout.js";
 
-// The strip is 60px wide and `sans-serif` resolves to a monospace face, so the
-// advance is 0.6em: 6 characters at bold 14px is 50.4px against a 54px budget.
-// Longer strings are condensed by fillText rather than truncated, which reads
-// as a rendering fault rather than a label.
-const MAX_STRIP_CHARS = 6;
-
-test("every side dial is labelled within the strip's width budget", () => {
+test("every side dial has a strip glyph that exists", () => {
   for (const [side, ids] of Object.entries(STRIP_DIALS)) {
     assert.equal(ids.length, 3, `${side} strip has three dials beside it`);
     for (const id of ids) {
       const dial = DIALS.find(candidate => candidate.id === id);
       assert.ok(dial, `${id} is missing from DIALS`);
-      assert.ok(dial.strip, `${id} needs a strip legend`);
-      assert.ok(dial.strip.length <= MAX_STRIP_CHARS, `"${dial.strip}" exceeds ${MAX_STRIP_CHARS} characters`);
-      assert.equal(dial.strip, dial.strip.toUpperCase(), `"${dial.strip}" should be upper case`);
+      assert.ok(dial.strip, `${id} needs a strip glyph`);
+      assert.ok(ICON_NAMES.includes(dial.strip), `${dial.strip} is not a drawable icon`);
     }
   }
 });
 
-test("the centre wheel has no side strip and so no legend", () => {
+// The strips sit 60px from the key grid, so a strip glyph that looks like a
+// tile glyph misdirects rather than informs.
+test("strip glyphs are not reused tile glyphs", () => {
+  const stripGlyphs = DIALS.map(dial => dial.strip).filter(Boolean);
+  assert.equal(new Set(stripGlyphs).size, stripGlyphs.length, "each dial has its own glyph");
+});
+
+test("the centre wheel has no side strip and so no glyph", () => {
   assert.equal(DIALS.find(candidate => candidate.id === "knobCT")?.strip, undefined);
 });
 
