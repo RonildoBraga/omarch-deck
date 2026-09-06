@@ -2,7 +2,7 @@ import type { DrawContext, LoupedeckCT, Touch } from "loupedeck";
 import { executeAction, workspaceFocus, workspaceMove } from "./actions.js";
 import type { DeckConfig } from "./config.js";
 import { drawIcon } from "./icons.js";
-import { BUTTONS, DIALS, WORKSPACE_BUTTONS, type Step } from "./layout.js";
+import { BUTTONS, DIALS, STRIP_DIALS, WORKSPACE_BUTTONS, type Step } from "./layout.js";
 import { PAGES, THEME, type DeckKey, type PageName } from "./pages.js";
 import { readDesktopState, type DesktopState } from "./state.js";
 
@@ -50,6 +50,28 @@ export class WheelOwnership {
   recordDashboard(signature: string): void {
     this.lastPainted = signature;
   }
+}
+
+export const STRIP_FONT = "bold 14px sans-serif";
+
+// Exported so the rendering can be inspected off-device: this paints onto a
+// 60x270 surface no test rig can see, and eyeballing a PNG beats guessing.
+export function stripPainter(side: "left" | "right") {
+  return (context: DrawContext, width: number, height: number): void => {
+    context.fillStyle = THEME.strip;
+    context.fillRect(0, 0, width, height);
+    context.fillStyle = THEME.text;
+    context.font = STRIP_FONT;
+    context.textAlign = "center";
+    context.textBaseline = "middle";
+    const ids = STRIP_DIALS[side];
+    const band = height / ids.length;
+    for (const [index, id] of ids.entries()) {
+      const legend = DIALS.find(candidate => candidate.id === id)?.strip;
+      if (!legend) continue;
+      context.fillText(legend, width / 2, band * (index + 0.5), width - 6);
+    }
+  };
 }
 
 interface TouchStart { at: number; key: number; page: PageName }
@@ -282,14 +304,16 @@ export class DeckController {
     return this.rendering;
   }
 
-  // The 60px strips either side of the keys are never drawn otherwise and
-  // would keep whatever the firmware last showed.
+  // The 60px strips either side of the keys name the three dials beside them —
+  // without this the dials are unlabelled, and the strips would also keep
+  // whatever the firmware last showed. Painted once per connect only: each
+  // strip is a 32,400-byte transfer and this firmware's draw acknowledgements
+  // are slow and highly variable, so this must never run on the state poll.
   private renderStrips(): Promise<void> {
-    const paint = (context: DrawContext, width: number, height: number): void => {
-      context.fillStyle = THEME.strip;
-      context.fillRect(0, 0, width, height);
-    };
-    return Promise.all([this.deck.drawScreen("left", paint), this.deck.drawScreen("right", paint)]).then(() => undefined);
+    return Promise.all([
+      this.deck.drawScreen("left", stripPainter("left")),
+      this.deck.drawScreen("right", stripPainter("right")),
+    ]).then(() => undefined);
   }
 
   private initializePhysicalLights(): void {

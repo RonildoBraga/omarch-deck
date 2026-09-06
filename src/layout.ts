@@ -15,6 +15,15 @@ export interface Step { label: string; invoke: Invoke }
 export interface DialLayout {
   id: "knobTL" | "knobCL" | "knobBL" | "knobTR" | "knobCR" | "knobBR" | "knobCT";
   name: string;
+  /**
+   * One word painted on the side strip beside this dial, so the physical
+   * controls are not unlabelled. Upper case, at most 6 characters: the strip is
+   * 60px wide and `sans-serif` currently resolves to a monospace face, giving a
+   * 0.6em advance — 6 characters at bold 14px is 50.4px of the 54px budget, and
+   * anything wider is condensed by fillText rather than truncated. The centre
+   * wheel has no side strip and so has no legend.
+   */
+  strip?: string;
   counterClockwise: Step;
   clockwise: Step;
   press: Step;
@@ -38,37 +47,37 @@ export const DIALS: readonly DialLayout[] = [
     press: { label: "Show hint", invoke: { note: "Turn to change workspace" } },
   },
   {
-    id: "knobTL", name: "Top left",
+    id: "knobTL", name: "Top left", strip: "VOLUME",
     counterClockwise: { label: "Volume −", invoke: "volume-down" },
     clockwise: { label: "Volume +", invoke: "volume-up" },
     press: { label: "Mute", invoke: "volume-mute" },
   },
   {
-    id: "knobTR", name: "Top right",
+    id: "knobTR", name: "Top right", strip: "SCREEN",
     counterClockwise: { label: "Brightness −", invoke: "brightness-down" },
     clockwise: { label: "Brightness +", invoke: "brightness-up" },
     press: { label: "Night light", invoke: "nightlight" },
   },
   {
-    id: "knobCL", name: "Centre left",
+    id: "knobCL", name: "Centre left", strip: "WINDOW",
     counterClockwise: { label: "Previous window", invoke: { run: () => cycleWindow(false) } },
     clockwise: { label: "Next window", invoke: { run: () => cycleWindow(true) } },
     press: { label: "Next window", invoke: { run: () => cycleWindow(true) } },
   },
   {
-    id: "knobCR", name: "Centre right",
+    id: "knobCR", name: "Centre right", strip: "TAB",
     counterClockwise: { label: "Previous tab", invoke: "tab-previous" },
     clockwise: { label: "Next tab", invoke: "tab-next" },
     press: { label: "Next tab", invoke: "tab-next" },
   },
   {
-    id: "knobBL", name: "Bottom left",
+    id: "knobBL", name: "Bottom left", strip: "SCROLL",
     counterClockwise: { label: "Page up", invoke: "scroll-up" },
     clockwise: { label: "Page down", invoke: "scroll-down" },
     press: { label: "Page down", invoke: "scroll-down" },
   },
   {
-    id: "knobBR", name: "Bottom right",
+    id: "knobBR", name: "Bottom right", strip: "ZOOM",
     counterClockwise: { label: "Zoom out", invoke: "zoom-out" },
     clockwise: { label: "Zoom in", invoke: "zoom-in" },
     press: { label: "Zoom reset", invoke: "zoom-reset" },
@@ -87,6 +96,13 @@ export const BUTTONS: readonly ButtonLayout[] = [
   { id: "d", name: "D", tap: { label: "Do not disturb", invoke: "dnd" } },
   { id: "e", name: "E", tap: { label: "Stay awake", invoke: "stay-awake" } },
 ];
+
+// Which dials sit beside each side strip, top to bottom. The library reports no
+// dial geometry, so the three bands are even thirds of the 270px strip.
+export const STRIP_DIALS: Record<"left" | "right", readonly DialLayout["id"][]> = {
+  left: ["knobTL", "knobCL", "knobBL"],
+  right: ["knobTR", "knobCR", "knobBR"],
+};
 
 export const WORKSPACE_BUTTONS = [0, 1, 2, 3, 4, 5, 6, 7] as const;
 export const WORKSPACE_TAP = "Focus workspace N";
