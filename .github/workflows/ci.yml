@@ -1,0 +1,37 @@
+name: verify
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          # Matches package.json engines: the test runner needs a node that
+          # expands the quoted glob itself.
+          node-version: '22'
+          cache: npm
+
+      # canvas and @serialport/bindings-cpp are native. Both ship prebuilt
+      # binaries for linux-x64, so this should not compile anything; if a
+      # future release drops them, this step is where it will show up.
+      - run: npm ci
+
+      - run: npm run check
+      - run: npm test
+      - run: npm run build
+
+      # docs/index.html is generated from the control tables and committed.
+      # test/docs.test.ts already fails when it is stale; this makes the reason
+      # obvious in CI rather than showing up as an assertion deep in a suite.
+      - name: docs are up to date
+        run: |
+          npx tsx scripts/build-docs.ts
+          git diff --exit-code -- docs/ \
+            || { echo "docs/ is stale — run 'make docs' and commit the result"; exit 1; }

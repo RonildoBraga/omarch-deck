@@ -3,7 +3,7 @@ import { executeAction, workspaceFocus, workspaceMove } from "./actions.js";
 import type { DeckConfig } from "./config.js";
 import { watchDesktop, type DesktopWatcher } from "./desktop-events.js";
 import { drawIcon } from "./icons.js";
-import { BUTTONS, DIALS, STRIP_DIALS, WORKSPACE_BUTTONS, type Step } from "./layout.js";
+import { BUTTONS, DIALS, STRIP_DIALS, WORKSPACE_BUTTONS, type DialLayout, type Step } from "./layout.js";
 import { PAGES, THEME, type DeckKey, type PageName } from "./pages.js";
 import { readDesktopState, type DesktopState } from "./state.js";
 
@@ -82,7 +82,22 @@ export function stripPainter(side: "left" | "right") {
   };
 }
 
-interface TouchStart { at: number; key: number; page: PageName }
+// The side strips are touch-sensitive — the library routes x<60 to screen
+// "left" and x>=420 to "right" — and each strip names three dials whose press
+// action is otherwise undiscoverable. Tapping a glyph fires its dial's press.
+const STRIP_HEIGHT = 270;
+
+export function stripDialAt(side: "left" | "right", y: number, height = STRIP_HEIGHT): DialLayout["id"] | undefined {
+  const ids = STRIP_DIALS[side];
+  const band = Math.floor((y / height) * ids.length);
+  return ids[Math.min(Math.max(band, 0), ids.length - 1)];
+}
+
+type TouchTarget =
+  | { kind: "key"; key: number; page: PageName }
+  | { kind: "dial"; id: DialLayout["id"] };
+
+interface TouchStart { at: number; target: TouchTarget }
 
 function delay(milliseconds: number): Promise<void> {
   return new Promise(resolve => setTimeout(resolve, milliseconds));
@@ -198,7 +213,10 @@ export class DeckController {
       this.queueRotate(id, delta);
     });
     this.deck.on("touchstart", ({ changedTouches }) => {
-      for (const touch of changedTouches) this.onTouchStart(touch);
+      for (const touch of changedTouches) {
+        if (DEBUG) console.log(`[input] touchstart x=${touch.x} y=${touch.y} screen=${touch.target.screen} key=${touch.target.key}`);
+        this.onTouchStart(touch);
+      }
     });
     this.deck.on("touchend", ({ changedTouches }) => {
       for (const touch of changedTouches) {
@@ -277,15 +295,33 @@ export class DeckController {
   }
 
   private onTouchStart(touch: Touch): void {
-    if (touch.target.screen !== "center" || touch.target.key === undefined) return;
-    this.touchStarts.set(touch.id, { at: Date.now(), key: touch.target.key, page: this.page });
+    const target = this.touchTarget(touch);
+    if (!target) return;
+    this.touchStarts.set(touch.id, { at: Date.now(), target });
+  }
+
+  private touchTarget(touch: Touch): TouchTarget | undefined {
+    const screen = touch.target.screen;
+    if (screen === "center") {
+      if (touch.target.key === undefined) return undefined;
+      return { kind: "key", key: touch.target.key, page: this.page };
+    }
+    if (screen !== "left" && screen !== "right") return undefined;
+    const id = stripDialAt(screen, touch.y);
+    return id ? { kind: "dial", id } : undefined;
   }
 
   private async onTouchEnd(touch: Touch): Promise<void> {
     const start = this.touchStarts.get(touch.id);
     this.touchStarts.delete(touch.id);
     if (!start) return;
-    const binding = PAGES[start.page][start.key];
+    const { target } = start;
+    if (target.kind === "dial") {
+      const dial = DIALS.find(candidate => candidate.id === target.id);
+      if (dial) await this.perform(dial.press);
+      return;
+    }
+    const binding = PAGES[target.page][target.key];
     if (!binding) return;
     const heldFor = Date.now() - start.at;
     if (binding.holdMs && heldFor < binding.holdMs) {
