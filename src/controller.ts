@@ -100,6 +100,8 @@ export class DeckController {
   private readonly rotations = new Map<string, { running: boolean; pending: number }>();
   private workspaceColors = new Map<number, string>();
   private readonly wheel = new WheelOwnership();
+  // Result of a dial action, held back until its rotation queue drains.
+  private queuedStatus: { title: string; detail: string } | undefined;
   private stopped = false;
   private disconnected = false;
   private loopExited = false;
@@ -202,10 +204,15 @@ export class DeckController {
     if (dial) await this.perform(dial.press);
   }
 
-  private async perform(step: Step): Promise<void> {
+  // `announce` paints a "Running…" frame before the action. That frame is a
+  // 240x240x2 = 115,200-byte transfer costing roughly 700ms on this firmware —
+  // several times the action itself — so dial rotations skip it and report
+  // once the spin settles instead. A button press keeps it: those actions are
+  // slow enough that the acknowledgement is worth more than the latency.
+  private async perform(step: Step, announce = true): Promise<void> {
     const { invoke } = step;
-    if (typeof invoke === "string") await this.runAction(invoke, step.label);
-    else if ("run" in invoke) await this.run(step.label, invoke.run);
+    if (typeof invoke === "string") await this.runAction(invoke, step.label, announce);
+    else if ("run" in invoke) await this.run(step.label, invoke.run, announce);
     else if ("page" in invoke) await this.renderPage(invoke.page);
     else await this.showStatus(step.label, invoke.note);
   }
@@ -225,6 +232,10 @@ export class DeckController {
           entry.pending -= step;
           await this.onRotate(id, step);
         }
+        // The spin has settled; now spend one frame saying what it did.
+        const status = this.queuedStatus;
+        this.queuedStatus = undefined;
+        if (status) await this.showStatus(status.title, status.detail);
       } catch (error) {
         console.error(`[input] rotate ${id}: ${errorMessage(error)}`);
       } finally {
@@ -238,7 +249,7 @@ export class DeckController {
 
   private async onRotate(id: string, delta: number): Promise<void> {
     const dial = DIALS.find(candidate => candidate.id === id);
-    if (dial) await this.perform(delta < 0 ? dial.counterClockwise : dial.clockwise);
+    if (dial) await this.perform(delta < 0 ? dial.counterClockwise : dial.clockwise, false);
   }
 
   private onTouchStart(touch: Touch): void {
@@ -265,19 +276,21 @@ export class DeckController {
     else if (binding.action) await this.runAction(binding.action, binding.label);
   }
 
-  private async runAction(action: string, label: string): Promise<void> {
-    await this.run(label, () => executeAction(action, this.config.project.path));
+  private async runAction(action: string, label: string, announce = true): Promise<void> {
+    await this.run(label, () => executeAction(action, this.config.project.path), announce);
   }
 
-  private async run(label: string, action: () => Promise<{ message: string }>): Promise<void> {
-    await this.showStatus(label, "Running…");
+  private async run(label: string, action: () => Promise<{ message: string }>, announce = true): Promise<void> {
+    if (announce) await this.showStatus(label, "Running…");
     try {
       const result = await action();
       console.log(`[action] ${label}: ${result.message}`);
-      await this.showStatus(label, result.message);
+      if (announce) await this.showStatus(label, result.message);
+      else this.queuedStatus = { title: label, detail: result.message };
     } catch (error) {
       console.error(`[action] ${label}: ${errorMessage(error)}`);
-      await this.showStatus("Action failed", label);
+      if (announce) await this.showStatus("Action failed", label);
+      else this.queuedStatus = { title: "Action failed", detail: label };
     }
   }
 
