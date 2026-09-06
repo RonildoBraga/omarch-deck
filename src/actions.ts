@@ -51,9 +51,16 @@ export const ACTIONS = {
   "tab-previous": ["wtype", "-M", "ctrl", "-M", "shift", "-P", "Tab", "-p", "Tab", "-m", "shift", "-m", "ctrl"],
   "scroll-up": ["wtype", "-P", "Page_Up", "-p", "Page_Up"],
   "scroll-down": ["wtype", "-P", "Page_Down", "-p", "Page_Down"],
-  "zoom-in": ["wtype", "-M", "ctrl", "-P", "plus", "-p", "plus", "-m", "ctrl"],
-  "zoom-out": ["wtype", "-M", "ctrl", "-P", "minus", "-p", "minus", "-m", "ctrl"],
-  "zoom-reset": ["wtype", "-M", "ctrl", "-P", "0", "-p", "0", "-m", "ctrl"],
+  // Zoom goes through the compositor, not wtype. wtype synthesises its own
+  // keymap and has to place `plus`/`minus`/`0` on spare keycodes; Chromium
+  // matches its zoom accelerators on hardware keycodes, so it receives the key
+  // (page JS sees Ctrl and "+") and does nothing. Verified on hardware: wtype
+  // left devicePixelRatio at 1 across six presses, send_shortcut moved it
+  // 1 -> 1.1 -> 1.25 -> back to 1. Keys with standard keycodes, such as the
+  // Ctrl+Tab below, are unaffected and stay on wtype.
+  "zoom-in": ["hyprctl", "dispatch", 'hl.dsp.send_shortcut({ mods = "CTRL", key = "equal" })'],
+  "zoom-out": ["hyprctl", "dispatch", 'hl.dsp.send_shortcut({ mods = "CTRL", key = "minus" })'],
+  "zoom-reset": ["hyprctl", "dispatch", 'hl.dsp.send_shortcut({ mods = "CTRL", key = "0" })'],
 } as const satisfies Record<string, readonly [string, ...string[]]>;
 
 export type ActionName = keyof typeof ACTIONS;
