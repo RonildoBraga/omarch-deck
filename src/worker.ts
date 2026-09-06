@@ -45,6 +45,17 @@ async function isOpenable(path: string): Promise<boolean> {
   }
 }
 
+// The retry branch below runs every 3s while the CT is unplugged. Logging it
+// each time produced ~28,800 identical lines a day; log the state, not the tick.
+function makeStateLogger(): (message: string) => void {
+  let previous = "";
+  return (message: string): void => {
+    if (message === previous) return;
+    previous = message;
+    console.log(message);
+  };
+}
+
 async function main(): Promise<void> {
   const { config, path } = await loadConfig();
   console.log(`[config] loaded ${path} (${config.profile.name}); project=${config.project.path}`);
@@ -52,6 +63,7 @@ async function main(): Promise<void> {
 
   let stopping = false;
   let controller: DeckController | undefined;
+  const logState = makeStateLogger();
   const stop = (): void => { stopping = true; controller?.stop(); };
   process.once("SIGINT", stop);
   process.once("SIGTERM", stop);
@@ -62,12 +74,12 @@ async function main(): Promise<void> {
     try {
       const info = await findCt(config.device.path);
       if (!info?.path) {
-        console.log(`[device] not available; retrying in ${RETRY_DELAY_MS / 1000}s`);
+        logState(`[device] not available; retrying every ${RETRY_DELAY_MS / 1000}s`);
         await delay(RETRY_DELAY_MS);
         continue;
       }
 
-      console.log(`[device] found ${info.path} (${info.vendorId?.toString(16)}:${info.productId?.toString(16).padStart(4, "0")})`);
+      logState(`[device] found ${info.path} (${info.vendorId?.toString(16)}:${info.productId?.toString(16).padStart(4, "0")})`);
       if (!await isOpenable(info.path)) {
         console.error(`[device] cannot open ${info.path}: permission denied. ` +
           "Run 'make udev-install', then reconnect the CT. Do not run omarch-deck as root.");

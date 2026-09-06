@@ -1,6 +1,7 @@
 import type { DrawContext, LoupedeckCT, Touch } from "loupedeck";
 import { executeAction, workspaceFocus, workspaceMove } from "./actions.js";
 import type { DeckConfig } from "./config.js";
+import { watchDesktop, type DesktopWatcher } from "./desktop-events.js";
 import { drawIcon } from "./icons.js";
 import { BUTTONS, DIALS, STRIP_DIALS, WORKSPACE_BUTTONS, type Step } from "./layout.js";
 import { PAGES, THEME, type DeckKey, type PageName } from "./pages.js";
@@ -25,6 +26,13 @@ const CLOSE_TIMEOUT_MS = 2_000;
 // each transfer (measured: draw latency on this firmware is far too variable
 // to put a deadline on), give up only once a disconnect has actually fired.
 const POST_DISCONNECT_GRACE_MS = 5_000;
+// The run loop no longer polls the desktop; it waits for Hyprland to say
+// something changed. This tick only re-checks flags, so it costs a timer rather
+// than four processes.
+const IDLE_TICK_MS = 200;
+// Backstop: catches the git branch, which Hyprland knows nothing about, and any
+// event the watcher missed while reconnecting.
+const SAFETY_REFRESH_MS = 30_000;
 
 // The wheel screen has two writers — the 750 ms dashboard poll and action
 // status messages — and no arbitration between them: the poll only repaints
@@ -87,6 +95,10 @@ function settled(pending: Promise<void> | undefined): Promise<void> {
   return pending ?? Promise.resolve();
 }
 
+// Per-input logging is useful when mapping a new device and pure noise
+// afterwards; the deck emitted tens of thousands of lines a day with it on.
+const DEBUG = process.env.OMARCH_DECK_LOG === "debug";
+
 function errorMessage(error: unknown): string {
   return error instanceof Error ? error.message : String(error);
 }
@@ -102,6 +114,9 @@ export class DeckController {
   private readonly wheel = new WheelOwnership();
   // Result of a dial action, held back until its rotation queue drains.
   private queuedStatus: { title: string; detail: string } | undefined;
+  private refreshDue = true;
+  private statusRestore: NodeJS.Timeout | undefined;
+  private watcher: DesktopWatcher | undefined;
   private stopped = false;
   private disconnected = false;
   private loopExited = false;
@@ -122,13 +137,22 @@ export class DeckController {
     this.initializePhysicalLights();
     console.log("[device] dashboard active: main page, workspace LEDs, and global dials ready");
 
+    this.watcher = watchDesktop(() => { this.refreshDue = true; });
+    let nextSafetyRefresh = Date.now() + SAFETY_REFRESH_MS;
     try {
       while (!this.stopped && !this.disconnected) {
-        await this.updateDesktopState();
-        await delay(750);
+        if (this.refreshDue || Date.now() >= nextSafetyRefresh) {
+          this.refreshDue = false;
+          nextSafetyRefresh = Date.now() + SAFETY_REFRESH_MS;
+          await this.updateDesktopState();
+        }
+        await delay(IDLE_TICK_MS);
       }
     } finally {
       this.loopExited = true;
+      this.watcher?.close();
+      this.watcher = undefined;
+      if (this.statusRestore) clearTimeout(this.statusRestore);
     }
   }
 
@@ -161,16 +185,16 @@ export class DeckController {
     this.deck.on("down", ({ id }) => {
       const name = String(id);
       this.held.add(name);
-      console.log(`[input] down ${name}`);
+      if (DEBUG) console.log(`[input] down ${name}`);
       void this.onButtonDown(name).catch(error => console.error(`[input] ${name}: ${errorMessage(error)}`));
     });
     this.deck.on("up", ({ id }) => {
       const name = String(id);
       this.held.delete(name);
-      console.log(`[input] up ${name}`);
+      if (DEBUG) console.log(`[input] up ${name}`);
     });
     this.deck.on("rotate", ({ id, delta }) => {
-      console.log(`[input] rotate ${id} delta=${delta}`);
+      if (DEBUG) console.log(`[input] rotate ${id} delta=${delta}`);
       this.queueRotate(id, delta);
     });
     this.deck.on("touchstart", ({ changedTouches }) => {
@@ -382,6 +406,9 @@ export class DeckController {
     // Claim the wheel for a moment and mark the dashboard dirty, so the poll
     // restores it once the status expires instead of assuming it is still up.
     this.wheel.claim(Date.now());
+    if (this.statusRestore) clearTimeout(this.statusRestore);
+    this.statusRestore = setTimeout(() => { this.refreshDue = true; }, STATUS_HOLD_MS + 100);
+    this.statusRestore.unref();
     return settled(this.deck.drawScreen("knob", (context, width, height) => {
       context.fillStyle = THEME.screenBg;
       context.fillRect(0, 0, width, height);

@@ -1,4 +1,4 @@
-import { BUTTONS, DIALS, WORKSPACE_FN, WORKSPACE_TAP, type DialLayout } from "./layout.js";
+import { BUTTONS, DIALS, WORKSPACE_FN, WORKSPACE_TAP, type ButtonLayout, type DialLayout } from "./layout.js";
 import { PAGES, THEME, type DeckKey, type PageName } from "./pages.js";
 
 // Renders docs/index.html from the same tables the controller runs, so the
@@ -53,6 +53,14 @@ function svgSquare(id: string, label: string, sub: string | undefined, x: number
     `<rect x="${x}" y="${y}" width="${w}" height="${h}" rx="6" fill="#1a1a1a" stroke="#7a0a0a" stroke-width="2"/>` +
     `<text x="${x + w / 2}" y="${y + 16}" text-anchor="middle" font-size="10" fill="${THEME.muted}">${esc(id)}</text>` +
     `<text x="${x + w / 2}" y="${y + h - 10}" text-anchor="middle" font-size="10" fill="${THEME.text}">${esc(label)}</text></g>`;
+}
+
+function buttonRow(ids: ReadonlyArray<ButtonLayout["id"]>): Array<{ id: string; label: string; sub?: string }> {
+  return ids.map(id => {
+    const button = BUTTONS.find(candidate => candidate.id === id);
+    if (!button) throw new Error(`No button ${id}`);
+    return { id: button.name, label: button.tap.label, ...(button.fn ? { sub: button.fn.label } : {}) };
+  });
 }
 
 export function renderSchematic(): string {
@@ -111,15 +119,13 @@ export function renderSchematic(): string {
   const keyH = 44;
   const keyGap = 8;
   const keysX = 370;
-  const rows: Array<Array<{ id: string; label: string; sub?: string }>> = [
-    [
-      { id: "Home", label: "Main page" },
-      { id: "Undo", label: "Undo", sub: "Redo" },
-      { id: "Keyboard", label: "Clipboard" },
-      { id: "Enter", label: "Enter" },
-      { id: "Save", label: "Save" },
-    ],
-    BUTTONS.filter(b => ["a", "b", "c", "d", "e"].includes(b.id)).map(b => ({ id: b.name, label: b.tap.label })),
+  // Derived, not transcribed: the hand-written copy of this row had already
+  // drifted from layout.ts, and neither test could see it — docs.test.ts
+  // compares the committed page against a fresh render, which reproduces the
+  // stale text faithfully.
+  const rows = [
+    buttonRow(["home", "undo", "keyboard", "enter", "save"]),
+    buttonRow(["a", "b", "c", "d", "e"]),
   ];
   rows.forEach((row, r) => {
     row.forEach((key, c) => {
