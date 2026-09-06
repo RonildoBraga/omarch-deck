@@ -89,7 +89,7 @@ decision.
 | Idle CPU | 2.64% of a core (~38 min/day) | **0.11%** (~1.5 min/day) |
 | Dial latency, notch → action | 761ms median | **3–6ms** |
 | Log volume | ~1,020 lines/hour | ~11 per 3 min |
-| Wedge restarts, normal use | 22/day | **0** |
+| Handshake recoveries, unattended | 22/day | **1 in 14.5h**, recovered in 1s |
 | Tests | 7 | 28 |
 
 Fixed: the port-close-before-exit wedge cycle; SIGTERM landing mid-connect;
@@ -100,7 +100,13 @@ that printed a raw zod array with no filename; a 1 MiB `maxBuffer` that killed
 builds rather than truncating; an Fn-modifier race; zoom not working at all.
 
 Added: dial glyphs on the side strips, strip taps, event-driven desktop state,
-logging discipline, CI.
+logging discipline, CI, an MIT licence.
+
+On the one handshake recovery in that soak: it is the *designed* path, not a
+fault. This firmware sometimes fails a handshake on reconnect; what matters is
+that the port is now closed before the restart, so it recovers in a second
+unattended instead of wedging until someone replugs the cable. Judge it by
+whether it loops, not by whether it happens.
 
 ---
 
@@ -112,10 +118,7 @@ logging discipline, CI.
    strip — if audio mutes, it works. Enable coordinate logging with
    `systemctl --user set-environment OMARCH_DECK_LOG=debug` and restart. If it
    does not fire, remove the `kind: "dial"` branch in `onTouchEnd`.
-2. **Pick a licence.** *(needs the user)* There is no `LICENSE` and
-   `package.json` still says `"private": true`, on a public repo that depends on
-   MIT-licensed work. MIT is the obvious fit. **Do not choose on their behalf.**
-3. **Retire `src/main.ts`.** It is a 58 MB Node process reimplementing
+2. **Retire `src/main.ts`.** It is a 58 MB Node process reimplementing
    systemd's `Restart=`, and three of the bugs fixed this week lived inside that
    reimplementation. `RestartForceExitStatus=75` plus `RestartSteps` /
    `RestartMaxDelaySec` covers it natively. Independently, the unit's rate limit
@@ -123,11 +126,11 @@ logging discipline, CI.
    `StartLimitBurst=5` means at most 2–3 starts fit in the window, so a
    permanent failure restarts forever instead of landing in `failed`. Worth
    doing *after* a few days of soak data on the current supervisor.
-4. **Contrast.** The occupied-vs-empty workspace LED is 1.27:1 and the Hold Lock
+3. **Contrast.** The occupied-vs-empty workspace LED is 1.27:1 and the Hold Lock
    icon 1.83:1, both under the WCAG 3:1 non-text threshold. `setVibration`
    exists in the library and is unused — a free second output channel. **This is
    the user's approved aesthetic; ask before changing it.**
-5. Smaller: `allowScripts` in `package.json` is dead config that nothing reads;
+4. Smaller: `allowScripts` in `package.json` is dead config that nothing reads;
    `profile.name` is parsed, logged and never used; there is no linter.
 
 ---

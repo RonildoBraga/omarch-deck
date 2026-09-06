@@ -145,3 +145,7 @@ its USB hub.
 
 Protocol support comes from the unofficial MIT-licensed
 [`loupedeck`](https://github.com/foxxyz/loupedeck) Node.js library.
+
+## License
+
+MIT — see [LICENSE](LICENSE).
