@@ -93,7 +93,7 @@ export const BUTTONS: readonly ButtonLayout[] = [
   { id: "b", name: "B", tap: { label: "Fullscreen", invoke: { run: fullscreen } } },
   { id: "c", name: "C", tap: { label: "Screen record", invoke: "screenrecord" } },
   { id: "d", name: "D", tap: { label: "Do not disturb", invoke: "dnd" } },
-  { id: "e", name: "E", tap: { label: "Stay awake", invoke: "stay-awake" } },
+  { id: "e", name: "E", tap: { label: "Dictation", invoke: "dictation" }, fn: { label: "Stay awake", invoke: "stay-awake" } },
 ];
 
 // Which dials sit beside each side strip, top to bottom. The library reports no

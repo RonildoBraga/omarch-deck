@@ -43,6 +43,10 @@ export const ACTIONS = {
   screenrecord: ["omarchy", "capture", "screenrecording"],
   dnd: ["omarchy", "toggle", "notification", "silencing"],
   "stay-awake": ["omarchy", "toggle", "idle"],
+  // Toggle rather than push-to-talk: a deck press is a discrete event, so
+  // there is no key-release to stop on. Requires voxtype's state file, which
+  // ~/.config/voxtype/config.toml enables with state_file = "auto".
+  dictation: ["voxtype", "record", "toggle"],
   save: ["wtype", "-M", "ctrl", "-P", "s", "-p", "s", "-m", "ctrl"],
   undo: ["wtype", "-M", "ctrl", "-P", "z", "-p", "z", "-m", "ctrl"],
   redo: ["wtype", "-M", "ctrl", "-M", "shift", "-P", "z", "-p", "z", "-m", "shift", "-m", "ctrl"],
