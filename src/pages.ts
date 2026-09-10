@@ -31,7 +31,7 @@ export const THEME = {
 export const PAGES: Record<PageName, DeckKey[]> = {
   main: [
     { label: "Terminal", icon: "terminal", action: "terminal", color: THEME.tile },
-    { label: "VS Code", icon: "code", action: "editor", color: THEME.tile },
+    { label: "Neovim", icon: "code", action: "editor", color: THEME.tile },
     { label: "Chrome", icon: "browser", action: "browser", color: THEME.tile },
     { label: "Files", icon: "files", action: "files", color: THEME.tile },
     { label: "Lazygit", icon: "git", action: "lazygit", color: THEME.tile },
@@ -53,7 +53,7 @@ export const PAGES: Record<PageName, DeckKey[]> = {
     { label: "Docker", icon: "docker", action: "docker", color: THEME.tile },
     { label: "btop", icon: "processes", action: "processes", color: THEME.tile },
     { label: "Terminal", icon: "terminal", action: "terminal", color: THEME.tile },
-    { label: "VS Code", icon: "code", action: "editor", color: THEME.tile },
+    { label: "Neovim", icon: "code", action: "editor", color: THEME.tile },
     { label: "Main", icon: "back", page: "main", color: THEME.nav, iconColor: THEME.navIcon },
     { label: "Hold Lock", icon: "lock", action: "lock-screen", color: THEME.danger, iconColor: THEME.dangerIcon, holdMs: 1_200 },
   ],
